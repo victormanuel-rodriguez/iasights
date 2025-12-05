@@ -13,10 +13,10 @@ COPY requirements.txt .
 # Instalar dependencias
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código fuente
+# Copiar el código fuente del backend
 COPY src ./src
 
-# Exponer el puerto donde correrá FastAPI dentro del contenedor
+# (Opcional) Exponer puerto usado internamente por FastAPI
 EXPOSE 8000
 
 # Comando para iniciar el servidor FastAPI

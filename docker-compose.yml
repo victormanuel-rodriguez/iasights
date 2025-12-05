@@ -8,6 +8,8 @@ services:
     container_name: iasights-api
     ports:
       - "8000:8000"
+    networks:
+      - iasights-net
 
   ui:
     build:
@@ -18,3 +20,9 @@ services:
       - "8501:8501"
     depends_on:
       - api
+    networks:
+      - iasights-net
+
+networks:
+  iasights-net:
+    driver: bridge
