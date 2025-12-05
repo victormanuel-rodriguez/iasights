@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/FastAPI.Dockerfile
+    container_name: iasights-api
+    ports:
+      - "8000:8000"
+    networks:
+      - iasights-net
+
+  ui:
+    build:
+      context: .
+      dockerfile: docker/streamlit.Dockerfile
+    container_name: iasights-ui
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    networks:
+      - iasights-net
+
+networks:
+  iasights-net:
+    driver: bridge
