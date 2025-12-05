@@ -9,7 +9,6 @@ import requests
 # CONFIGURACIÓN INICIAL
 # -------------------------------------------------------------------
 
-# Ruta absoluta a la carpeta raíz del proyecto (la que contiene src/)
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
@@ -22,157 +21,225 @@ from src.analytics.basico import (
     top_productos,
     top_clientes,
 )
-from src.analytics.patrones import ventas_por_categoria, top_productos_por_ventas
-from src.analytics.clientes import clientes_recurrentes
 from src.analytics.periodos import obtener_meses_disponibles
 from src.analytics.filtros import filtrar_por_periodo
+from src.utils.etiquetas import (
+    aplicar_etiquetas,
+    formatear_monedas
+)
 
+# -------------------------------------------------------------------
+# Cargar estilos CSS
+# -------------------------------------------------------------------
+styles_path = os.path.join(os.path.dirname(__file__), "styles.css")
 
-st.set_page_config(page_title="IAsights MVP", layout="wide")
-st.title("IAsights MVP")
+if os.path.exists(styles_path):
+    with open(styles_path) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-API_URL = "http://iasights-api:8000"  # backend dentro de Docker Compose
+st.set_page_config(page_title="IAsights", layout="wide")
+
+# Encabezado
+st.markdown("<h1>IAsights – Inteligencia para tu negocio</h1>", unsafe_allow_html=True)
+st.markdown(
+    "<p style='text-align:center; font-size:18px; color:#cccccc'>Análisis de ventas: KPIs esenciales, insights y predicciones</p>",
+    unsafe_allow_html=True,
+)
+
+st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+
+API_URL = "http://iasights-api:8000"
+
 
 # -------------------------------------------------------------------
 # CARGA DE CSV
 # -------------------------------------------------------------------
+st.header("1. Cargar archivo CSV")
+uploaded_file = st.file_uploader("Selecciona tu archivo CSV de ventas", type=["csv"])
 
-uploaded_file = st.file_uploader("Sube tu archivo CSV de ventas", type=["csv"])
+if not uploaded_file:
+    st.stop()
 
-if uploaded_file:
-    df = cargar_csv(uploaded_file)
+df = cargar_csv(uploaded_file)
 
-    # ---------------------------------------------------------------
-    # RESUMEN GENERAL
-    # ---------------------------------------------------------------
-    st.subheader("Resumen general")
-    resumen = resumen_general(df)
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Ventas totales", f"${resumen['total_ventas']:.2f}")
-    col2.metric("Facturas únicas", resumen["num_facturas_unicas"])
-    col3.metric("Productos distintos", resumen["num_productos"])
+# Muestra vista previa con etiquetas
+st.subheader("Vista previa del archivo")
+st.dataframe(aplicar_etiquetas(formatear_monedas(df.head())))
 
-    # ---------------------------------------------------------------
-    # VENTAS DIARIAS
-    # ---------------------------------------------------------------
-    st.subheader("Ventas diarias (todas las fechas del CSV)")
-    ventas = ventas_diarias(df)
-    fig = px.bar(ventas, x="transaction_date", y="total_ventas", title="Ventas por día")
-    st.plotly_chart(fig, use_container_width=True)
+st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
 
-     # =========================
-    # KPIs globales del negocio
-    # =========================
-    st.subheader("Resumen global de ventas")
 
-    kpis = calcular_kpis_generales(df)
+# -------------------------------------------------------------------
+# KPIs GLOBALES
+# -------------------------------------------------------------------
+st.header("2. KPIs principales del negocio")
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Monto total vendido", f"${kpis['monto_total']:,.2f}")
-        st.metric("Ticket promedio", f"${kpis['ticket_promedio']:,.2f}")
-    with col2:
-        st.metric("Número de facturas", f"{kpis['n_facturas']:,}")
-        st.metric("Clientes registrados (líneas)", f"{kpis['n_clientes_registrados']:,}")
-    with col3:
-        st.metric("Clientes únicos", f"{kpis['n_clientes_unicos']:,}")
-        st.metric("Productos distintos", f"{kpis['n_productos']:,}")
+resumen = resumen_general(df)
+kpis = calcular_kpis_generales(df)
 
-    # =========================
-    # Top productos
-    # =========================
-    st.subheader("Top productos por ingreso generado")
-    df_top_prod = top_productos(df, n=5)
-    st.dataframe(df_top_prod)
+col1, col2, col3 = st.columns(3)
 
-    # =========================
-    # Top clientes
-    # =========================
-    st.subheader("Top clientes recurrentes")
-    df_top_cli = top_clientes(df, n=10)
-    if df_top_cli.empty:
-        st.info("No hay clientes registrados en el CSV (customer_id vacío).")
-    else:
-        st.dataframe(df_top_cli)
+with col1:
+    st.markdown("<div class='kpi-box'>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi-value'>${resumen['total_ventas']:,.2f}</div>", unsafe_allow_html=True)
+    st.markdown("<div class='kpi-label'>Ventas totales</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    # ---------------------------------------------------------------
-    # SELECCIÓN DE PERIODO
-    # ---------------------------------------------------------------
-    meses = obtener_meses_disponibles(df)
+with col2:
+    st.markdown("<div class='kpi-box'>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi-value'>{resumen['num_facturas_unicas']:,}</div>", unsafe_allow_html=True)
+    st.markdown("<div class='kpi-label'>Facturas únicas</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.subheader("Seleccione período para análisis avanzado (ML)")
-    periodo = st.selectbox(
-        "Período",
-        ["ultimo_mes", "ultimos_90_dias"] + meses
-    )
+with col3:
+    st.markdown("<div class='kpi-box'>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi-value'>{kpis['n_productos']:,}</div>", unsafe_allow_html=True)
+    st.markdown("<div class='kpi-label'>Productos distintos</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    df_filtrado = filtrar_por_periodo(df, periodo)
 
-    st.info(f"Filtrando datos para el período seleccionado: {periodo}")
+# -------------------------------------------------------------------
+# TOP PRODUCTOS Y CLIENTES
+# -------------------------------------------------------------------
+st.subheader("Top productos por ingreso generado")
+df_top_prod = top_productos(df, n=5)
+st.dataframe(aplicar_etiquetas(formatear_monedas(df_top_prod)))
 
-    # Mostrar ventas del período filtrado
-    ventas_periodo = ventas_diarias(df_filtrado)
-    fig2 = px.line(
-        ventas_periodo,
-        x="transaction_date",
-        y="total_ventas",
-        title=f"Ventas diarias – período: {periodo}"
-    )
-    st.plotly_chart(fig2, use_container_width=True)
+st.subheader("Top clientes recurrentes")
+df_top_cli = top_clientes(df, n=10)
 
-    # -------------------------------------------------------------------
-    # PREDICCIÓN DE VENTAS (IA – MODELO 1)
-    # -------------------------------------------------------------------
-    st.subheader("Predicción de ventas (IA tradicional)")
+if df_top_cli.empty:
+    st.info("No hay clientes registrados en el CSV (customer_id vacío).")
+else:
+    st.dataframe(aplicar_etiquetas(formatear_monedas(df_top_cli)))
 
-    if st.button("Generar predicción para los próximos 7 días"):
-        with st.spinner("Entrenando modelo y generando predicciones..."):
+st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
 
-            # Enviar archivo y parámetros al backend
-            files = {
-                "file": (uploaded_file.name, uploaded_file.getvalue(), "text/csv")
-                }
-            params = {"periodo": periodo, "dias_futuro": 7}
 
-            try:
-                response = requests.post(
-                    f"{API_URL}/forecast-sales",
-                    files=files,
-                    params=params,
-                    timeout=60
-                )
-            except Exception as e:
-                st.error(f"Error al conectar con backend FastAPI: {e}")
-                st.stop()
+# -------------------------------------------------------------------
+# VENTAS DIARIAS
+# -------------------------------------------------------------------
+st.header("3. Comportamiento histórico de ventas")
 
-            if response.status_code != 200:
-                st.error(f"Error del backend ({response.status_code}): {response.text}")
-                st.stop()
+ventas = ventas_diarias(df)
+ventas_form = aplicar_etiquetas(formatear_monedas(ventas))
 
-            data = response.json()
+fig = px.bar(
+    ventas_form,
+    x="Fecha",
+    y="Ventas Totales",
+    title="Ventas diarias (todo el período del archivo)",
+)
+st.plotly_chart(fig, use_container_width=True)
 
-            historico = pd.DataFrame(data["historico"])
-            pred_futuro = pd.DataFrame(data["predicciones_futuras"])
-            metricas = data["metricas_modelo"]
+st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
 
-            # Mostrar métricas
-            st.write("### Métricas del modelo")
-            st.write(metricas)
 
-            # Gráfico combinado (histórico + predicciones)
-            if not pred_futuro.empty:
-                historico["tipo"] = "Histórico"
-                pred_futuro["tipo"] = "Predicción"
+# -------------------------------------------------------------------
+# PERÍODO PARA ANÁLISIS AVANZADO
+# -------------------------------------------------------------------
+st.header("4. Selección de período para análisis avanzado")
 
-                comb = pd.concat([historico, pred_futuro], ignore_index=True)
-                fig3 = px.line(
-                    comb,
-                    x="transaction_date",
-                    y="prediccion",
-                    color="tipo",
-                    title="Predicción de ventas para próximos 7 días",
-                )
-                st.plotly_chart(fig3, use_container_width=True)
+meses = obtener_meses_disponibles(df)
 
-            else:
-                st.warning("No fue posible generar predicciones (datos insuficientes).")
+# Mapeo: etiqueta amigable → valor real
+opciones_periodo = {
+    "Último mes": "ultimo_mes",
+    "Últimos 90 días": "ultimos_90_dias"
+}
+
+# Agregar meses detectados en el CSV
+for m in meses:
+    opciones_periodo[f"Mes: {m}"] = m
+
+etiquetas = list(opciones_periodo.keys())
+
+seleccion = st.selectbox("Período a analizar", etiquetas)
+
+periodo = opciones_periodo[seleccion]   # ← valor real que se usa en el backend
+
+df_filtrado = filtrar_por_periodo(df, periodo)
+
+ventas_periodo = ventas_diarias(df_filtrado)
+ventas_periodo_form = aplicar_etiquetas(formatear_monedas(ventas_periodo))
+
+fig2 = px.line(
+    ventas_periodo_form,
+    x="Fecha",
+    y="Ventas Totales",
+    title=f"Ventas en período seleccionado: {periodo}",
+)
+st.plotly_chart(fig2, use_container_width=True)
+
+
+# -------------------------------------------------------------------
+# ML – PREDICCIÓN DE VENTAS
+# -------------------------------------------------------------------
+st.header("5. Predicción de ventas")
+
+if st.button("Generar predicción para los próximos 7 días"):
+    with st.spinner("Entrenando modelo y generando predicciones..."):
+
+        files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "text/csv")}
+        params = {"periodo": periodo, "dias_futuro": 7}
+
+        try:
+            response = requests.post(
+                f"{API_URL}/forecast-sales",
+                files=files,
+                params=params,
+                timeout=60
+            )
+        except Exception as e:
+            st.error(f"Error al conectar con backend FastAPI: {e}")
+            st.stop()
+
+        if response.status_code != 200:
+            st.error(f"Error del backend ({response.status_code}): {response.text}")
+            st.stop()
+
+        data = response.json()
+
+        historico = pd.DataFrame(data["historico"])
+        pred_futuro = pd.DataFrame(data["predicciones_futuras"])
+        metricas = data["metricas_modelo"]
+
+        # ---------------------------
+        # MÉTRICAS HUMANAS DEL MODELO
+        # ---------------------------
+        st.subheader("Desempeño del modelo")
+
+        r2 = metricas.get("r2_test", None)
+        dias = metricas.get("n_dias_hist", None)
+
+        st.success(
+            f"""
+            **Resultados del modelo:**
+
+            • **Calidad del modelo:** {r2 * 100:.1f}%  
+            • **Días analizados:** {dias}  
+            • **Estado:** Modelo entrenado correctamente.
+            """
+        )
+
+        # ---------------------------
+        # GRÁFICA DE PREDICCIÓN
+        # ---------------------------
+        if not pred_futuro.empty:
+            historico["tipo"] = "Histórico"
+            pred_futuro["tipo"] = "Predicción"
+
+            comb = pd.concat([historico, pred_futuro], ignore_index=True)
+            comb = aplicar_etiquetas(formatear_monedas(comb))
+
+            fig3 = px.line(
+                comb,
+                x="Fecha",
+                y="Predicción",
+                color="tipo",
+                title="Predicción de ventas para próximos 7 días"
+            )
+            st.plotly_chart(fig3, use_container_width=True)
+
+        else:
+            st.warning("No fue posible generar predicciones (datos insuficientes).")

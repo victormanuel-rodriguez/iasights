@@ -1,0 +1,64 @@
+/* ===== ESTILOS GENERALES ===== */
+body, .stApp {
+    background-color: #0e1117;
+    color: #e1e1e1;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* Títulos */
+h1 {
+    text-align: center;
+    font-size: 48px;
+    color: #ffffff;
+    margin-bottom: 5px;
+}
+h2 {
+    font-size: 30px;
+    margin-top: 40px;
+    color: #ffffff;
+}
+h3 {
+    font-size: 22px;
+    margin-top: 25px;
+}
+
+/* Tarjetas métricas */
+.kpi-box {
+    background: #1c1f26;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #2c2f36;
+}
+
+.kpi-value {
+    font-size: 32px;
+    font-weight: bold;
+    color: #76c7ff;
+}
+
+.kpi-label {
+    font-size: 14px;
+    color: #aaaaaa;
+}
+
+/* Tablas */
+.dataframe tbody tr:hover {
+    background-color: #1f2937 !important;
+}
+
+table {
+    color: white !important;
+}
+
+/* Gráficos */
+.vega-embed {
+    background: transparent !important;
+}
+
+/* Separadores */
+.section-divider {
+    margin-top: 40px;
+    margin-bottom: 40px;
+    border-bottom: 2px solid #2d2f34;
+}
