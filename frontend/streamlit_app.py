@@ -15,11 +15,18 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from src.ingestion.validator import cargar_csv
-from src.analytics.basico import ventas_diarias, resumen_general
+from src.analytics.basico import (
+    ventas_diarias,
+    resumen_general,
+    calcular_kpis_generales,
+    top_productos,
+    top_clientes,
+)
 from src.analytics.patrones import ventas_por_categoria, top_productos_por_ventas
 from src.analytics.clientes import clientes_recurrentes
 from src.analytics.periodos import obtener_meses_disponibles
 from src.analytics.filtros import filtrar_por_periodo
+
 
 st.set_page_config(page_title="IAsights MVP", layout="wide")
 st.title("IAsights MVP")
@@ -53,19 +60,40 @@ if uploaded_file:
     fig = px.bar(ventas, x="transaction_date", y="total_ventas", title="Ventas por día")
     st.plotly_chart(fig, use_container_width=True)
 
-    # ---------------------------------------------------------------
-    # TOP PRODUCTOS
-    # ---------------------------------------------------------------
-    st.subheader("Top 5 productos por ventas")
-    top_prod = top_productos_por_ventas(df, top_n=5)
-    st.dataframe(top_prod)
+     # =========================
+    # KPIs globales del negocio
+    # =========================
+    st.subheader("Resumen global de ventas")
 
-    # ---------------------------------------------------------------
-    # CLIENTES RECURRENTES
-    # ---------------------------------------------------------------
-    st.subheader("Clientes recurrentes (≥ 2 facturas)")
-    clientes_rec = clientes_recurrentes(df, min_visitas=2)
-    st.dataframe(clientes_rec.head(10))
+    kpis = calcular_kpis_generales(df)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Monto total vendido", f"${kpis['monto_total']:,.2f}")
+        st.metric("Ticket promedio", f"${kpis['ticket_promedio']:,.2f}")
+    with col2:
+        st.metric("Número de facturas", f"{kpis['n_facturas']:,}")
+        st.metric("Clientes registrados (líneas)", f"{kpis['n_clientes_registrados']:,}")
+    with col3:
+        st.metric("Clientes únicos", f"{kpis['n_clientes_unicos']:,}")
+        st.metric("Productos distintos", f"{kpis['n_productos']:,}")
+
+    # =========================
+    # Top productos
+    # =========================
+    st.subheader("Top productos por ingreso generado")
+    df_top_prod = top_productos(df, n=5)
+    st.dataframe(df_top_prod)
+
+    # =========================
+    # Top clientes
+    # =========================
+    st.subheader("Top clientes recurrentes")
+    df_top_cli = top_clientes(df, n=10)
+    if df_top_cli.empty:
+        st.info("No hay clientes registrados en el CSV (customer_id vacío).")
+    else:
+        st.dataframe(df_top_cli)
 
     # ---------------------------------------------------------------
     # SELECCIÓN DE PERIODO
