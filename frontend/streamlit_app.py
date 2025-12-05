@@ -27,6 +27,7 @@ from src.utils.etiquetas import (
     aplicar_etiquetas,
     formatear_monedas
 )
+from src.ml.patrones_horarios import detectar_patrones_horarios
 
 # -------------------------------------------------------------------
 # Cargar estilos CSS
@@ -130,7 +131,7 @@ fig = px.bar(
     y="Ventas Totales",
     title="Ventas diarias (todo el período del archivo)",
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
 
@@ -167,15 +168,92 @@ fig2 = px.line(
     ventas_periodo_form,
     x="Fecha",
     y="Ventas Totales",
-    title=f"Ventas en período seleccionado: {periodo}",
+    title=f"Gráfico de ventas para el período seleccionado:",
 )
-st.plotly_chart(fig2, use_container_width=True)
+st.plotly_chart(fig2, width="stretch")
 
+# -------------------------------------------------------------------
+# HEATMAP DE DEMANDA POR DIA DE LA SEMANA Y HORA
+# -------------------------------------------------------------------
+
+st.header("5. Patrones de demanda por día y horario")
+
+patrones_df = detectar_patrones_horarios(df_filtrado)
+
+if patrones_df.empty:
+    st.info(
+        "No hay suficientes datos en el período seleccionado para analizar "
+        "patrones horarios de demanda."
+    )
+else:
+    # Copias para visualización/tablas y para heatmap
+    patrones_vis = patrones_df.copy()
+    patrones_vis["Ventas totales"] = patrones_vis["Ventas totales"].apply(
+        lambda x: f"${x:,.2f}"
+    )
+
+    st.subheader("Mapa de calor de demanda por día y franja horaria")
+
+    # Heatmap usando ventas totales numéricas
+    heat_df = (
+        patrones_df.pivot_table(
+            index="Día",
+            columns="Franja horaria",
+            values="Ventas totales",
+            aggfunc="sum",
+        )
+        .fillna(0)
+    )
+
+    # ORDENAR LOS DÍAS DE LUNES A DOMINGO
+    orden_dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    
+    # Reindexar filas usando el orden correcto
+    heat_df = heat_df.reindex(orden_dias)
+
+    # Crear heatmap
+    fig_hm = px.imshow(
+        heat_df,
+        color_continuous_scale="Turbo",
+        labels={
+            "x": "Franja horaria",
+            "y": "Día",
+            "color": "Ventas totales",
+        },
+        aspect="auto",
+    )
+    st.plotly_chart(fig_hm, width="stretch")
+
+    # Top franjas de mayor demanda
+    st.subheader("Franjas con mayor demanda (Pico)")
+    top_pico = (
+        patrones_df[patrones_df["Nivel de demanda"] == "Pico"]
+        .sort_values("Ventas totales", ascending=False)
+        .head(5)
+        .copy()
+    )
+    top_pico["Ventas totales"] = top_pico["Ventas totales"].apply(
+        lambda x: f"${x:,.2f}"
+    )
+    st.dataframe(top_pico)
+
+    # Franjas con menor demanda
+    st.subheader("Franjas con menor demanda (Bajo)")
+    top_bajo = (
+        patrones_df[patrones_df["Nivel de demanda"] == "Bajo"]
+        .sort_values("Ventas totales", ascending=True)
+        .head(5)
+        .copy()
+    )
+    top_bajo["Ventas totales"] = top_bajo["Ventas totales"].apply(
+        lambda x: f"${x:,.2f}"
+    )
+    st.dataframe(top_bajo)
 
 # -------------------------------------------------------------------
 # ML – PREDICCIÓN DE VENTAS
 # -------------------------------------------------------------------
-st.header("5. Predicción de ventas")
+st.header("6. Predicción de ventas")
 
 if st.button("Generar predicción para los próximos 7 días"):
     with st.spinner("Entrenando modelo y generando predicciones..."):
@@ -204,9 +282,9 @@ if st.button("Generar predicción para los próximos 7 días"):
         pred_futuro = pd.DataFrame(data["predicciones_futuras"])
         metricas = data["metricas_modelo"]
 
-        # ---------------------------
-        # MÉTRICAS HUMANAS DEL MODELO
-        # ---------------------------
+        # --------------------
+        # MÉTRICAS  DEL MODELO
+        # --------------------
         st.subheader("Desempeño del modelo")
 
         r2 = metricas.get("r2_test", None)
@@ -239,7 +317,7 @@ if st.button("Generar predicción para los próximos 7 días"):
                 color="tipo",
                 title="Predicción de ventas para próximos 7 días"
             )
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, width="stretch")
 
         else:
             st.warning("No fue posible generar predicciones (datos insuficientes).")
