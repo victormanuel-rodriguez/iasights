@@ -14,11 +14,14 @@ REQUIRED_COLUMNS = [
     "product_subtotal"
 ]
 
-def cargar_csv(ruta: str) -> pd.DataFrame:
+def cargar_csv(data) -> pd.DataFrame:
     """
-    Carga el CSV, valida columnas y hace casting básico.
+    Acepta: ruta a archivo (str) o DataFrame cargado en memoria.
     """
-    df = pd.read_csv(ruta)
+    if isinstance(data, pd.DataFrame):
+        df = data.copy()
+    else:
+        df = pd.read_csv(data)
 
     # Validación de columnas
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
